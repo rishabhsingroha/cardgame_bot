@@ -1,0 +1,19 @@
+{
+  "name": "discord-card-bot",
+  "version": "1.0.0",
+  "description": "A Discord bot for card collection and trading",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.13.0",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.2",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
