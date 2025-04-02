@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const path = require('path');
-const { BOT_CONFIG } = require('../utils/cardGenerator');
-const { generatePack } = require('../utils/cardGenerator');
+const fs = require('fs');
+const { BOT_CONFIG, generatePack } = require('../utils/cardGenerator');
 const { getUser, createUser, updateLastOpened, addToInventory } = require('../utils/database');
 
 const RARITY_COLORS = {
@@ -51,9 +51,22 @@ module.exports = {
             // Update last opened timestamp
             await updateLastOpened(interaction.user.id);
 
-            // Create embeds for each card
-            const embeds = pack.map(card => {
-                const imagePath = card.isFoil ? card.image.replace('.png', '_foil.png') : card.image;
+            // Create embeds for each card and prepare files to send
+            const embeds = [];
+            const files = [];
+            
+            for (const card of pack) {
+                // Determine image path for foil or regular card
+                let imagePath = card.isFoil ? card.image.replace('.png', '_foil.png') : card.image;
+                let fullPath = path.join(process.cwd(), imagePath);
+                
+                // Check if the image exists, if not (for foil), fall back to regular image
+                if (!fs.existsSync(fullPath) && card.isFoil) {
+                    imagePath = card.image; // Fall back to regular image path
+                    fullPath = path.join(process.cwd(), imagePath);
+                }
+                
+                // Create the embed with the correct image path
                 const embed = new EmbedBuilder()
                     .setTitle(card.name)
                     .setDescription(`Rarity: ${card.rarity}`)
@@ -63,15 +76,16 @@ module.exports = {
                 if (card.isFoil) {
                     embed.setFooter({ text: '✨ Foil' });
                 }
+                
+                // Add the embed and file to their respective arrays
+                embeds.push(embed);
+                files.push(fullPath);
+            }
 
-                return { embed, imagePath };
-            });
-
-            // Send response with all cards
             await interaction.editReply({
                 content: '🎉 Here are your cards:',
-                embeds: embeds.map(({ embed }) => embed),
-                files: embeds.map(({ imagePath }) => path.join(process.cwd(), imagePath))
+                embeds: embeds,
+                files: files
             });
 
         } catch (error) {

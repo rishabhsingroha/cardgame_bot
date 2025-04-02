@@ -70,7 +70,8 @@ module.exports = {
                     name,
                     rarity,
                     image: imagePath,
-                    is_foil: isFoil
+                    is_foil: isFoil,
+                    is_chase: isFoil // Mark card as chase when foil is true
                 });
 
                 const embed = new EmbedBuilder()

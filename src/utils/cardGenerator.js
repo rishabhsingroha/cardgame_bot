@@ -1,6 +1,6 @@
 const BOT_CONFIG = {
     pack: {
-        cooldown: 86400000, // 24 hours in milliseconds
+        cooldown: 5000, // 5 seconds in milliseconds
         structure: {
             regularCards: 5,
             chaseCard: 1,
@@ -40,56 +40,54 @@ function generateRegularCard() {
 
 function generateChaseCard() {
     const { chase } = BOT_CONFIG.pack.structure.probabilities;
-    const isFoil = Math.random() < chase.foil.chance;
+    // Always make chase cards foil as per requirement
+    const isFoil = true;
     const rarity = weightedRandom(chase.rarity);
     
     return { isFoil, rarity };
 }
 
 async function generatePack(db) {
-    const regularCards = [];
-    let foilCount = 0;
-    
-    // Generate regular cards
-    while (regularCards.length < BOT_CONFIG.pack.structure.regularCards) {
-        const card = generateRegularCard();
-        if (card.isFoil) {
-            if (foilCount < BOT_CONFIG.pack.structure.probabilities.regular.foil.max) {
-                foilCount++;
-                regularCards.push(card);
-            } else {
-                card.isFoil = false;
-                regularCards.push(card);
-            }
-        } else {
-            regularCards.push(card);
-        }
-    }
-    
-    // Generate chase card
-    const chaseCard = generateChaseCard();
-    
-    // Get actual cards from database based on generated rarities
     const pack = [];
     
-    for (const cardInfo of regularCards) {
+    // Generate and process regular cards first - exactly 5 cards
+    // These cards will NOT be foil (as per requirement, only chase cards should be foil)
+    for (let i = 0; i < BOT_CONFIG.pack.structure.regularCards && pack.length < BOT_CONFIG.pack.structure.regularCards; i++) {
+        const cardInfo = generateRegularCard();
+        // Force regular cards to not be foil
+        cardInfo.isFoil = false;
+        
         const cards = await db.getCardsByRarity(cardInfo.rarity);
         if (cards && cards.length > 0) {
             const randomCard = cards[Math.floor(Math.random() * cards.length)];
             pack.push({
                 ...randomCard,
-                isFoil: cardInfo.isFoil
+                isFoil: false // Ensure regular cards are never foil
             });
         }
     }
     
-    const chaseCards = await db.getCardsByRarity(chaseCard.rarity);
-    if (chaseCards && chaseCards.length > 0) {
-        const randomChaseCard = chaseCards[Math.floor(Math.random() * chaseCards.length)];
-        pack.push({
-            ...randomChaseCard,
-            isFoil: chaseCard.isFoil
-        });
+    // Ensure we have exactly the right number of regular cards
+    if (pack.length > BOT_CONFIG.pack.structure.regularCards) {
+        // If we somehow got more cards than needed, trim the excess
+        pack.splice(BOT_CONFIG.pack.structure.regularCards);
+    }
+    
+    // Generate and process chase card - exactly 1 card
+    // This card WILL be foil (as per requirement, chase cards should be foil)
+    if (pack.length === BOT_CONFIG.pack.structure.regularCards) {
+        const chaseInfo = generateChaseCard();
+        // Force chase card to be foil
+        chaseInfo.isFoil = true;
+        
+        const chaseCards = await db.getCardsByRarity(chaseInfo.rarity);
+        if (chaseCards && chaseCards.length > 0) {
+            const randomChaseCard = chaseCards[Math.floor(Math.random() * chaseCards.length)];
+            pack.push({
+                ...randomChaseCard,
+                isFoil: true // Ensure chase card is always foil
+            });
+        }
     }
     
     return pack;
