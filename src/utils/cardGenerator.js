@@ -1,6 +1,6 @@
 const BOT_CONFIG = {
     pack: {
-        cooldown: 5000, // 5 seconds in milliseconds
+        cooldown: 86400000, // 24 hours in milliseconds
         structure: {
             regularCards: 5,
             chaseCard: 1,
