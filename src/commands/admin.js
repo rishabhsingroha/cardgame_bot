@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const { addCard, getUser, getUserInventory } = require('../utils/database');
+const { addCard } = require('../utils/database');
 const { handleCardImageUpload } = require('../utils/fileUpload');
 const path = require('path');
 
@@ -36,15 +36,11 @@ module.exports = {
                 .addAttachmentOption(option =>
                     option.setName('image')
                         .setDescription('Card image file')
-                        .setRequired(true)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('checkuser')
-                .setDescription('Check user stats')
-                .addUserOption(option =>
-                    option.setName('user')
-                        .setDescription('User to check')
-                        .setRequired(true))),
+                        .setRequired(true))
+                .addBooleanOption(option =>
+                    option.setName('foil')
+                        .setDescription('Whether the card is foil')
+                        .setRequired(false))),
 
     async execute(interaction) {
         try {
@@ -63,6 +59,7 @@ module.exports = {
                 const name = interaction.options.getString('name');
                 const rarity = interaction.options.getString('rarity');
                 const imageAttachment = interaction.options.getAttachment('image');
+                const isFoil = interaction.options.getBoolean('foil') || false;
                 const cardId = Date.now().toString();
 
                 // Handle image upload
@@ -72,7 +69,8 @@ module.exports = {
                     id: cardId,
                     name,
                     rarity,
-                    image: imagePath
+                    image: imagePath,
+                    is_foil: isFoil
                 });
 
                 const embed = new EmbedBuilder()
@@ -80,58 +78,13 @@ module.exports = {
                     .addFields(
                         { name: 'Name', value: name },
                         { name: 'Rarity', value: rarity },
-                        { name: 'ID', value: cardId }
+                        { name: 'ID', value: cardId },
+                        { name: 'Foil', value: isFoil ? '✨ Yes' : 'No' }
                     )
                     .setImage(`attachment://${path.basename(imagePath)}`)
                     .setThumbnail(interaction.guild.iconURL())
                     .setColor(0x2ecc71)
                     .setTimestamp();
-
-                await interaction.editReply({
-                    embeds: [embed],
-                    files: [path.join(process.cwd(), imagePath)]
-                });
-
-            } else if (subcommand === 'checkuser') {
-                const targetUser = interaction.options.getUser('user');
-                const userData = await getUser(targetUser.id);
-                const inventory = await getUserInventory(targetUser.id);
-
-                if (!userData) {
-                    return await interaction.editReply({
-                        content: 'User has not opened any packs yet!'
-                    });
-                }
-
-                // Count cards by rarity
-                const rarityCount = inventory.reduce((count, card) => {
-                    count[card.rarity] = (count[card.rarity] || 0) + 1;
-                    return count;
-                }, {});
-
-                // Count foil cards
-                const foilCount = inventory.filter(card => card.is_foil).length;
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`📊 Stats for ${targetUser.username}`)
-                    .addFields(
-                        { name: 'Total Cards', value: inventory.length.toString(), inline: true },
-                        { name: 'Foil Cards', value: foilCount.toString(), inline: true },
-                        { name: 'Last Pack Opened', value: userData.lastOpened ? 
-                            `<t:${Math.floor(userData.lastOpened / 1000)}:R>` : 
-                            'Never', inline: true }
-                    )
-                    .setColor(0x3498db)
-                    .setTimestamp();
-
-                // Add rarity breakdown
-                Object.entries(rarityCount).forEach(([rarity, count]) => {
-                    embed.addFields({
-                        name: rarity,
-                        value: count.toString(),
-                        inline: true
-                    });
-                });
 
                 await interaction.editReply({
                     embeds: [embed],
